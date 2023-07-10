@@ -16,12 +16,14 @@ const projectId = process.env.PROJECT_ID
 
 // 2. Configure wagmi client
 const chains = [ baseGoerli ]
-const { publicClient } = configureChains(chains, [w3mProvider({ projectId })])
+export const { publicClient } = configureChains(chains, [w3mProvider({ projectId })])
 const config = createConfig({
   autoConnect: true,
   connectors: w3mConnectors({ projectId, version: 1, chains }),
   publicClient
 })
+
+
 
 // 3. Configure modal ethereum client
 export const ethereumClient = new EthereumClient(config, chains)
