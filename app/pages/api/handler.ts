@@ -12,7 +12,7 @@ const handler: NextApiHandler = async (req, res) => {
 	const account = new Account({
 		operator: operator as Signer,
 		owner: new VoidSigner(process.env.NEXT_PUBLIC_OWNER as string, provider),
-		chainId: 80001,
+		chainId: 84531,
 	});
 	const bundler = new Bundler(process.env.BUNDLER_URL as string);
 	await account.getAccount();
@@ -23,6 +23,7 @@ const handler: NextApiHandler = async (req, res) => {
 		0,
 		counter.interface.encodeFunctionData('increment') + 'c0'
 	);
+	console.log(result);
 	return res.status(200).json(result);
 };
 

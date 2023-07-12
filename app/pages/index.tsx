@@ -24,24 +24,27 @@ export default function Home() {
 		});
 		if (a.toLowerCase() != process.env.NEXT_PUBLIC_OWNER?.toLowerCase()) return;
 		setAddress(a);
-		console.log(a)
+		console.log(a);
 		const provider = new providers.Web3Provider((window as any).ethereum);
 		setSigner(await provider.getSigner());
 		setCounter(new Contract(counterAddress, counterABI.abi, await provider.getSigner()));
-		console.log(counter)
+		console.log(counter);
+
+		deploySmartAccount();
 	};
 
 	const queryBalance = async () => {
 		if (!counter || !signer) return;
-		const account = new Account({
-			operator: new VoidSigner(
-				process.env.NEXT_PUBLIC_OPERATOR as string,
-				signer.provider
-			),
-			owner: signer,
-			chainId: 84531,
-		});
+		// const account = new Account({
+		// 	operator: new VoidSigner(
+		// 		process.env.NEXT_PUBLIC_OPERATOR as string,
+		// 		signer.provider
+		// 	),
+		// 	owner: signer,
+		// 	chainId: 84531,
+		// });
 		const balance = await counter.number();
+		console.log(BigInt(balance as bigint))
 		setBalance(BigInt(balance as bigint));
 	};
 
@@ -55,21 +58,34 @@ export default function Home() {
 				signer.provider
 			),
 			owner: signer,
-			chainId: Number(chainId) as 84531,
+			chainId: 84531,
 		});
 		await account.getAccount();
+
 		const root = window.localStorage.getItem('root');
-		if (!(await account.isDeployed())) return;
-		setAllowed(
-			(await account.allowedPermission()) === root &&
-				Number(window.localStorage.getItem('expiration')) > Date.now()
-		);
+		if (!(await account.isDeployed())) {
+			console.log("smart account does not exist for this provider")
+			return;
+		}
+
+		if ((await account.allowedPermission()) === root) {
+			console.log("allowed permissions == root");
+			if (Number(window.localStorage.getItem('expiration')) > Date.now()) {
+				console.log("expiration set true");
+				setAllowed(true);
+			}
+		}
+		setAllowed(true)
+		// setAllowed(
+		// 	(await account.allowedPermission()) === root &&
+		// 		Number(window.localStorage.getItem('expiration')) > Date.now()
+		// );
 	};
 
 	useEffect(() => {
-		if (!address) return;
-		queryBalance();
-		queryAllowed();
+		if (!address || !counter) return;
+		//queryBalance();
+		//queryAllowed();
 		const interv = setInterval(queryBalance, 5000);
 
 		return () => {
@@ -96,25 +112,22 @@ export default function Home() {
 			await account.deploy();
 		}
 		const permSet = new PermissionSet({
-			title: 'Counter Project',
+			title: 'Counter Increment',
 			maxFee: parseEther('1'),
 			maxValue: 0,
 			permissions: [
 				new Permission({
 					operator: process.env.NEXT_PUBLIC_OPERATOR as string,
-					to: counter.address,
+					to: counterAddress,
 					selector: counter.interface.getSighash('increment'),
 					allowed_arguments: '0xc0',
 					expiresAtUnix: new Date(1813986312 * 1000),
-					maxUsage: 11,
+					maxUsage: 0,
 				}),
 			],
 		});
-		window.localStorage.setItem('root', permSet.hash().toString());
-		window.localStorage.setItem(
-			'expiration',
-			new Date(Date.now() + 1000 * 3600 * 1).getTime().toString()
-		);
+		window.localStorage.setItem( 'root', permSet.hash().toString() );
+		window.localStorage.setItem( 'expiration', new Date(Date.now() + 1000 * 3600 * 1).getTime().toString() );
 		await permSet.upload();
 		// in normal conditions redirect to authorization page
 		await account.setOperatorPermissions(permSet);
@@ -125,6 +138,28 @@ export default function Home() {
 		console.log(await account.getAddress())
 		setDisabled(false);
 	};
+
+	const deploySmartAccount = async () => {
+		console.log("Running");
+		if (!signer || !counter) return;
+		setDisabled(true);
+		const chainId = (await signer.provider?.getNetwork())?.chainId;
+		if (!chainId || chainId != 84531) return;
+		const account = new Account({
+			operator: new VoidSigner(
+				process.env.NEXT_PUBLIC_OPERATOR as string,
+				signer.provider
+			),
+			owner: signer,
+			chainId: Number(chainId) as 84531,
+		});
+
+		await account.getAccount();
+
+		await account.deploy();
+
+		console.log(account);
+	}
 
 	return (
 		<div className="w-screen h-screen bg-white">
@@ -147,6 +182,7 @@ export default function Home() {
 									disabled ? 'bg-slate-400' : 'bg-pink-500'
 								} font-semibold text-lg px-4 py-2 rounded-lg`}
 								onClick={incrementWithPermissive}
+								//onClick={deploySmartAccount}
 								disabled={disabled}
 							>
 								Increment Number
